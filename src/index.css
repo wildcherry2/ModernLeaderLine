@@ -1,0 +1,17 @@
+#src {
+    background-color: blue;
+    transform: translate(100px, 500px);
+    width: 400px;
+    height: 400px;
+}
+
+#dest {
+    background-color: red;
+    transform: translate(1100px, 100px);
+    width: 400px;
+    height: 500px;
+}
+
+.draggable {
+    position: absolute;
+}

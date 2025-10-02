@@ -1,0 +1,157 @@
+Types:
+    LeaderLineReference = { 
+        getBoundingClientRectAsync(): Promise<DOMRect>
+        leader_line_socket: ESocket
+    }
+    LeaderLineStyleConfiguration = {
+        color: CSSColor
+        line_thickness: CSSNumber
+        arrowhead_thickness: CSSNumber
+    }
+    ESocket {
+        left,
+        top,
+        right,
+        bottom
+    }
+    ArctanResult = number;
+
+Fields:
+    - source: LeaderLineReference
+    - target: LeaderLineReference
+    - hidden: boolean
+    - style_config: LeaderLineStyleConfiguration
+
+Methods:
+    - configureStyle(config: Partial<LeaderLineStyleConfiguration>): void
+        + Assigns style to underlying line
+        + Preconditions: none
+        + Postconditions: 
+            1. Style is assigned to line element, with defaults/previous config merged in beforehand
+        + Side effects: none
+        + Return value: void
+
+    - position(): void
+        + Calculates and assigns size and coordinates of line element
+        + Preconditions:
+            1. 'source' and 'target' are set
+        + Postconditions:
+            1. Line is visible and drawn from source socket to target socket
+            2. this.hidden is false
+        + Side effects:
+            1. If precondtions aren't met or the reference elements overlap, then the element is hidden by running 'hide' method
+        + Return value: void
+
+    - show(): void
+        + Asserts that the element is visible
+        + Preconditions: none
+        + Postconditions:
+            1. Style's display property is not 'none'
+            2. this.hidden is set to false
+        + Side effects: none
+        + Return value: void
+
+    - hide(): void
+        + Asserts that the element is not visible
+        + Preconditions: none
+        + Postconditions:
+            1. Style's display property is set to 'none'
+            2. this.hidden is set to true
+        + Side effects: none
+        + Return value: void
+    
+    - drawLine(src: DOMPoint, dest: DOMPoint): void
+        + Draws a line between src and dest points, resizing the bounds of the element as needed
+        + Preconditions: none
+        + Postconditions:
+            1. Element's width/height/x/y is set accordingly
+            2. Path command is calculated and applied
+        + Side effects:
+            1. Possible layout pass(es)
+        + Return value: void
+    
+    - validate(): boolean
+        + Dispatches an event after source and target are both set and different from their previous values, returning the result of dispatching
+        + Listeners can preventDefault() to stop position()/drawLine() from being called after refs are set,
+          and set style options accordingly
+        + Preconditions:
+            1. If called by implementation, source/target are both set and differ in some way from the last validation call
+        + Postconditions:
+            1. If called by implementation, position() will not be called after setting source/target, though the line may still be visible if already drawn
+        + Side effects: none
+        + Return value: true if event is default prevented, false otherwise
+
+    - static arctanToSocket(angle: ArctanResult): ESocket
+        + Converts result from Math.atan2 to an ESocket value
+        + Preconditions: none
+        + Postconditions: none
+        + Side effects: none
+        + Return value: ESocket
+
+    - static getSocketCoord(rect: DOMRect, socket: ESocket): DOMPoint
+        + Converts ESocket value to DOMPoint coordinate relative to the given rectangle
+        + Preconditions: none
+        + Postconditions: none
+        + Side effects: none
+        + Return value: DOMPoint
+
+    - static pointsToRect(p1: DOMPoint, p2: DOMPoint): DOMRect
+        + Converts points to rectangle by interpreting them as extrema
+        + Preconditions: none
+        + Postconditions: none
+        + Side effects: none
+        + Return value: DOMRect
+    
+Constructor:
+    1. Run 'configureStyle' method, parsing configuration from attributes
+    2. Run 'position' method
+
+position(): void
+    - Locals:
+        + src_rect: DOMRect
+        + dest_rect: DOMRect
+        + src_angle: ArctanResult
+        + dest_angle: ArctanResult
+        + src_pt: DOMPoint
+        + dest_pt: DOMPoint
+    0. Check precondtions
+        + If not met, run the 'hide' method and return 
+    1. Assign src_rect and dest_rect by running and awaiting their 'getBoundingClientRectAsync' method
+    2. If src_rect and dest_rect overlap, run the 'hide' method and return
+    3. Assign src_angle and dest_angle by using the arctangent2 between the center points of the rectangles
+    4. Set this.source and this.target's socket field by converting the angles using the 'arctanToSocket' method
+    5. Assign src_pt and dest_pt using 'getSocketCoord' method
+    6. Run the 'drawLine' method with the points
+    7. Run the 'show' method and return
+
+arctanToSocket(angle: ArctanResult): ESocket
+    1. Convert ArctanResult to normal angle by adding 360 degrees to the value if it's negative
+        - The angle is now between 0 and 360 degrees
+    2. Evaluate angle range:
+        if(angle <= 45 degrees || angle > 315 degrees) return ESocket.right;
+        if(angle <= 135 degrees && angle > 45 degrees) return ESocket.top;
+        if(angle <= 225 degrees && angle > 135 degrees) return ESocket.left;
+        return ESocket.bottom;
+
+getSocketCoord(rect: DOMRect, socket: ESocket): DOMPoint
+    - Locals:
+        + center: DOMPoint
+    1. Assign center by calling the corresponding DOMRect method
+    2. Evaluate sockets:
+        if(socket is ESocket.left) subtract half-width from center's x coordinates
+        else if(socket is ESocket.top) add half-height to center's y coordinates
+        else if(socket is ESocket.right) add half-width to center's x coordinates
+        else subtract half-height from center's y coordinates
+    3. Return center
+
+drawLine(src: DOMPoint, dest: DOMPoint): void
+    - Locals:
+        + bounding_rect: DOMRect
+        + offset: number
+    1. Assign bounding_rect by using 'pointsToRect' method
+    2. Calculate the offset by adding the pixel values of the line and arrowhead thicknesses from the style config
+    3. Subtract the offset from x and y values of the bounding_rect
+    4. Add 2 * offset to the width and height of the bounding_rect
+        + This is to ensure that the resulting size of the element encompasses the whole line and doesn't clip it
+    // calc/apply path command
+    n. Set host's width, height, left, and top style values to the bounding_rect
