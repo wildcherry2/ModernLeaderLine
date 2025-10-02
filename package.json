@@ -2,8 +2,8 @@
   "name": "modernleaderline",
   "version": "1.0.0",
   "description": "Modern and simplified implementation of LeaderLine.",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc --project tsconfig.lib.json",
     "start": "webpack && webpack-dev-server --mode development"
